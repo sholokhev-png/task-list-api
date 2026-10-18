@@ -25,7 +25,17 @@ def create_task():
 
 @tasks_bp.route("/tasks", methods=["GET"])
 def get_tasks():
-    tasks = db.session.execute(db.select(Task)).scalars().all()
+    sort_order = request.args.get("sort")
+
+    query = db.select(Task)
+
+    if sort_order == "asc":
+        query = query.order_by(Task.title.asc())
+
+    elif sort_order == "desc":
+        query = query.order_by(Task.title.desc())
+
+    tasks = db.session.execute(query).scalars().all()
 
     result = []
 
