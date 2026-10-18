@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.db import db
 from app.models.task import Task
+from datetime import datetime, timezone
 
 tasks_bp = Blueprint("tasks_bp", __name__)
 
@@ -86,6 +87,33 @@ def delete_task(task_id):
         return jsonify({"details": "Task not found"}), 404
 
     db.session.delete(task)
+    db.session.commit()
+
+    return "", 204, {"Content-Type": "application/json"}
+
+@tasks_bp.route("/tasks/<int:task_id>/mark_complete", methods=["PATCH"])
+def mark_complete(task_id):
+    task = db.session.get(Task, task_id)
+
+    if task is None:
+        return jsonify({"details": "Task not found"}), 404
+
+    task.completed_at = datetime.now(timezone.utc)
+
+    db.session.commit()
+
+    return "", 204, {"Content-Type": "application/json"}
+
+
+@tasks_bp.route("/tasks/<int:task_id>/mark_incomplete", methods=["PATCH"])
+def mark_incomplete(task_id):
+    task = db.session.get(Task, task_id)
+
+    if task is None:
+        return jsonify({"details": "Task not found"}), 404
+
+    task.completed_at = None
+
     db.session.commit()
 
     return "", 204, {"Content-Type": "application/json"}
