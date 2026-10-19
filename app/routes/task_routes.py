@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from app.db import db
 from app.models.task import Task
 from datetime import datetime, timezone
+import requests
+import os
 
 tasks_bp = Blueprint("tasks_bp", __name__)
 
@@ -99,8 +101,37 @@ def mark_complete(task_id):
         return jsonify({"details": "Task not found"}), 404
 
     task.completed_at = datetime.now(timezone.utc)
-
     db.session.commit()
+
+    slack_token = os.environ.get("SLACK_BOT_TOKEN")
+
+    if slack_token:
+        url = "https://slack.com/api/chat.postMessage"
+
+        headers = {
+            "Authorization": f"Bearer {slack_token}"
+        }
+
+        data = {
+            "channel": "task-notifications",
+            "text": f"Someone just completed the task {task.title}!"
+        }
+
+        try:
+            response = requests.post(
+                url,
+                headers=headers,
+                json=data,
+                timeout=10
+            )
+
+            response.raise_for_status()
+
+            if not response.json().get("ok"):
+                print("Slack error:", response.json().get("error"))
+
+        except requests.RequestException as error:
+            print("Slack request failed:", error)
 
     return "", 204, {"Content-Type": "application/json"}
 
