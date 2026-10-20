@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ..db import db
 from ..models.goal import Goal
+from ..models.task import Task
 
 goals_bp = Blueprint("goals", __name__)
 
@@ -71,3 +72,59 @@ def delete_goal(goal_id):
     db.session.commit()
 
     return "", 204, {"Content-Type": "application/json"}
+
+@goals_bp.route("/goals/<int:goal_id>/tasks", methods=["POST"])
+def add_tasks_to_goal(goal_id):
+    goal = db.session.get(Goal, goal_id)
+
+    if goal is None:
+        return jsonify({"details": "Goal not found"}), 404
+
+    request_body = request.get_json(silent=True)
+
+    if not isinstance(request_body, dict):
+        return jsonify({"details": "Invalid data"}), 400
+
+    task_ids = request_body.get("task_ids")
+
+    if not isinstance(task_ids, list):
+        return jsonify({"details": "Invalid data"}), 400
+
+    tasks = []
+
+    for task_id in task_ids:
+        if type(task_id) is not int:
+            return jsonify({"details": "Invalid task ID"}), 400
+
+        task = db.session.get(Task, task_id)
+
+        if task is None:
+            return jsonify({"details": "Task not found"}), 404
+
+        tasks.append(task)
+
+    goal.tasks = tasks  
+    db.session.commit()
+
+    return jsonify({
+        "id": goal.id,
+        "task_ids": task_ids
+    }), 200
+
+@goals_bp.route("/goals/<int:goal_id>/tasks", methods=["GET"])
+def get_tasks_for_goal(goal_id):
+    goal = db.session.get(Goal, goal_id)
+
+    if goal is None:
+        return jsonify({"details": "Goal not found"}), 404
+
+    tasks_list = []
+
+    for task in goal.tasks:
+        tasks_list.append(task.to_dict())
+
+    return jsonify({
+        "id": goal.id,
+        "title": goal.title,
+        "tasks": tasks_list
+    }), 200
